@@ -1,16 +1,16 @@
 # Sample data
 
-Use these files with `01_CA_User_Ratio_Beginner.ipynb`.
+These Excel files are for learning. They are **not** live network results.
 
 | File | What it contains |
 |---|---|
-| `sample_ca_kpi.xlsx` | Finished hourly KPIs in Excel (2 sheets). Start with this. |
-| `dl_ca_user_ratio.csv` | Same DL sheet, as CSV. |
-| `ul_ca_user_ratio.csv` | Same UL sheet, as CSV. |
-| `sample_ca_raw_counters.csv` | Raw counters, if you want to calculate the KPI yourself. |
+| `sample_ran_kpi_dashboard.xlsx` | Practice dashboard: one sheet per KPI, plus `KPI_Settings`. |
+| `YOUR_KPI_TEMPLATE.xlsx` | Empty template. Copy this when you prepare your own file. |
 
-To use your own network:
+## Sheet rules
 
-1. Copy `sample_ca_kpi.xlsx`.
-2. Keep the sheet names and the `Hour` column.
-3. Replace the date columns with your dates and values.
+- `HowTo` — instructions, not plotted
+- `KPI_Settings` — title and Y-axis for each KPI
+- Every other sheet — one KPI, with column `Hour` then one column per date
+
+When a real OSS Excel is available, save it in this folder and point the notebook at it.

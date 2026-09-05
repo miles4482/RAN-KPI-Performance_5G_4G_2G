@@ -1,4 +1,4 @@
-"""Build the beginner Jupyter notebook as a valid .ipynb file."""
+"""Build the beginner RAN KPI dashboard notebook."""
 
 from pathlib import Path
 
@@ -29,34 +29,36 @@ def code(text):
 
 
 md(
-    """# RAN KPI in Python — CA User Ratio (Beginner Guide)
+    """# RAN KPI Dashboard in Python (Beginner Guide)
 
-This notebook rebuilds the **same style of chart** as the Excel sample:
+This notebook builds a **dashboard of many RAN KPIs**, using the same chart style as a typical Excel report:
 
-- Left chart: **DL CA User Ratio, %** (Downlink Carrier Aggregation)
-- Right chart: **UL CA User Ratio, %** (Uplink Carrier Aggregation)
-- Green / yellow / gray **bars** = last 3 full days
-- Black **line** = today (partial day is OK)
+- Green / yellow / gray **bars** = previous days
+- Black **line** = latest day (a partial day is OK)
+- **One sheet = one KPI**
+- The code does **not** care which KPI it is. RRC success, drop rate, PRB utilization, throughput, CA, availability... same method.
 
-You do **not** need to be a programmer. Work slowly:
+Today we use **practice data** so you can learn the steps.
+
+Later you will send a sample Excel from your network. We will plug that file in. If the layout is different, we will adapt the code. You do not need to force your OSS export to match today.
+
+Work slowly:
 
 1. Click the first cell.
-2. Press **Shift + Enter** to run it.
+2. Press **Shift + Enter**.
 3. Wait until it finishes.
 4. Go to the next cell and repeat.
 
-If a cell turns **red**, stop and read the last line of the error. Most beginner issues are a missing library or the wrong folder.
+If a cell turns **red**, stop and read the last line of the error.
 """
 )
 
 md(
     """## Step 0 — Install the tools (run this once)
 
-Python needs 3 extra packages:
-
 | Package | What it does |
 |---|---|
-| `pandas` | Reads Excel / CSV tables |
+| `pandas` | Reads Excel tables |
 | `matplotlib` | Draws the charts |
 | `openpyxl` | Lets pandas open `.xlsx` files |
 
@@ -77,20 +79,17 @@ md(
     """## Step 1 — Load the Python libraries
 
 Think of this as opening Excel, then opening the chart menu.
-
-- `pandas` as `pd` → we will use `pd.read_excel(...)` to open the table
-- `matplotlib.pyplot` as `plt` → we will use `plt.bar(...)` and `plt.plot(...)` to draw
-- `numpy` as `np` → simple number help (hour positions on the X axis)
 """
 )
 
 code(
-    """from IPython.display import display
+    """from pathlib import Path
+
+from IPython.display import display
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
-# Show charts inside this notebook (not in a pop-up window)
 %matplotlib inline
 
 print("Libraries loaded.")
@@ -99,418 +98,335 @@ print("pandas version:", pd.__version__)
 )
 
 md(
-    """## Step 2 — What is CA User Ratio?
+    """## Step 2 — The idea: one chart style for every KPI
 
-**Carrier Aggregation (CA)** lets one user use more than one LTE/NR carrier at the same time, which can improve throughput.
+A RAN dashboard is many small charts, not one special CA chart.
 
-The KPI is a percentage of users:
-
-\\[
-\\text{DL CA User Ratio (\\%)} = \\frac{\\text{Users with Downlink CA}}{\\text{Average RRC users}} \\times 100
-\\]
-
-\\[
-\\text{UL CA User Ratio (\\%)} = \\frac{\\text{Users with Uplink CA}}{\\text{Average RRC users}} \\times 100
-\\]
-
-Typical live-network behaviour (same as the sample):
-
-- **DL CA** is much higher than **UL CA** (many phones do DL CA, fewer do UL CA)
-- Both drop in the **night** (fewer CA-capable users / less demand)
-- **UL CA** often rises in the evening
-
-Vendor counter names differ (Huawei / Ericsson / Nokia), but the idea is the same: CA users ÷ total users × 100.
-"""
-)
-
-md(
-    """## Step 3 — Open the sample Excel file
-
-The file `data/sample_ca_kpi.xlsx` has these sheets (Excel tabs):
-
-- `HowTo` — short instructions
-- `DL_CA_User_Ratio` — the downlink KPI table
-- `UL_CA_User_Ratio` — the uplink KPI table
-
-Each sheet looks like this:
+Each KPI table looks like this:
 
 | Hour | 27-Aug-26 | 1-Sep-26 | 2-Sep-26 | 3-Sep-26 |
 |---|---|---|---|---|
-| 00:00 | 20.3 | 19.8 | 20.2 | 20.0 |
-| 01:00 | 19.0 | 18.6 | 18.5 | 18.8 |
-| ... | ... | ... | ... | ... |
+| 00:00 | ... | ... | ... | ... |
+| 01:00 | ... | ... | ... | ... |
+| 23:00 | ... | ... | ... | ... |
 
-Empty cells after 14:00 on **3-Sep-26** mean "today is not finished yet". The black line will stop there.
+Rules:
 
-> **Folder tip:** Open Jupyter from the **project folder** (the folder that contains `data` and this notebook). Then the path below will work.
-"""
-)
+- Column 1 is always **Hour**
+- Other columns are **dates** (those names become the legend)
+- Last date column is drawn as the **black line**
+- Earlier date columns are drawn as **bars**
+- Empty cells mean "no data yet"
 
-code(
-    """from pathlib import Path
+The KPI **name** only changes:
 
-# Path to the sample Excel file
-excel_path = Path("data/sample_ca_kpi.xlsx")
-
-if not excel_path.exists():
-    raise FileNotFoundError(
-        "I cannot find data/sample_ca_kpi.xlsx.\\n"
-        "In Jupyter, use File -> Open and open the project folder first, "
-        "then open this notebook."
-    )
-
-# sheet_name=None means: load ALL sheets
-workbook = pd.read_excel(excel_path, sheet_name=None)
-
-print("Sheets inside the Excel file:")
-for name in workbook:
-    print(" -", name)
-
-dl = workbook["DL_CA_User_Ratio"]
-ul = workbook["UL_CA_User_Ratio"]
-
-print("\\nDL table size (rows, columns):", dl.shape)
-print("UL table size (rows, columns):", ul.shape)
+- the Excel sheet name
+- the chart title
+- the Y-axis (0-100 for utilization, 98-100 for success rate, 0-50 for throughput, and so on)
 """
 )
 
 md(
-    """## Step 4 — Look at the tables
+    """## Step 3 — Point to the Excel file
 
-Always look at the data **before** you draw a chart. This is the same as scrolling through Excel.
-"""
-)
+This is the only path you will change later, when your real file arrives.
 
-code(
-    """print("===== DL CA User Ratio (%) =====")
-display(dl)
-
-print("===== UL CA User Ratio (%) =====")
-display(ul)
-"""
-)
-
-md(
-    """### Quick check
-
-- There should be **24 rows** (00:00 to 23:00).
-- The last date column can contain `NaN` (Not a Number). That is normal for a partial day.
-- DL values should be around **10 to 25**.
-- UL values should be around **0.5 to 2.0**.
-"""
-)
-
-code(
-    """print("DL column names:", list(dl.columns))
-print("UL column names:", list(ul.columns))
-print()
-print("DL min / max:")
-print(dl.select_dtypes(include="number").agg(["min", "max"]))
-print()
-print("UL min / max:")
-print(ul.select_dtypes(include="number").agg(["min", "max"]))
-"""
-)
-
-md(
-    """## Step 5 — Draw one combined chart (bars + line)
-
-We will copy the Excel style:
-
-- **Bars** for the first 3 dates
-- **Line with dots** for the latest date
-- Green / yellow / gray / black colors like Excel
-- Horizontal grid lines
-- Y-axis from 0 to 25 for DL, 0 to 2 for UL
-
-Read the comments. You can change colors or titles later.
-"""
-)
-
-code(
-    """def plot_ca_kpi(ax, table, title, y_max, y_step):
-    \"\"\"Draw one KPI chart on one subplot.
-
-    ax     = the empty box where matplotlib will draw
-    table  = pandas DataFrame (Hour + one column per date)
-    title  = text on top of the chart
-    y_max  = highest number on the Y axis
-    y_step = gap between Y-axis ticks
-    \"\"\"
-    # Column 0 is Hour. The other columns are dates.
-    hour_labels = table["Hour"].astype(str)
-    date_columns = [col for col in table.columns if col != "Hour"]
-
-    # First 3 dates = bars, last date = line (same as the sample)
-    bar_dates = date_columns[:-1]
-    line_date = date_columns[-1]
-
-    # Excel-like colors
-    bar_colors = ["#92D050", "#FFC000", "#A6A6A6"]  # green, gold, gray
-    line_color = "#000000"  # black
-
-    # Positions 0, 1, 2, ... 23 on the X axis
-    x = np.arange(len(hour_labels))
-    bar_width = 0.25
-
-    # Draw grouped bars: one group per hour
-    # The 3 bars sit slightly left, center, and slightly right
-    offsets = [-bar_width, 0.0, bar_width]
-    for date, offset, color in zip(bar_dates, offsets, bar_colors):
-        ax.bar(
-            x + offset,
-            table[date],
-            width=bar_width,
-            color=color,
-            edgecolor="white",
-            linewidth=0.3,
-            label=date,
-            zorder=3,
-        )
-
-    # Draw today's values as a line on top of the bars
-    ax.plot(
-        x,
-        table[line_date],
-        color=line_color,
-        linewidth=2.2,
-        marker="o",
-        markersize=4,
-        label=line_date,
-        zorder=4,
-    )
-
-    ax.set_title(title, fontsize=13, pad=10)
-    ax.set_ylim(0, y_max)
-    ax.set_yticks(np.arange(0, y_max + 0.0001, y_step))
-    ax.set_xticks(x)
-    ax.set_xticklabels(hour_labels, rotation=90, fontsize=8)
-    ax.set_xlim(-0.6, len(hour_labels) - 0.4)
-    ax.yaxis.grid(True, linestyle="-", linewidth=0.6, color="#D9D9D9")
-    ax.set_axisbelow(True)
-    ax.spines["top"].set_visible(False)
-    ax.spines["right"].set_visible(False)
-    ax.legend(loc="upper left", bbox_to_anchor=(1.01, 1.0), fontsize=8)
-    ax.tick_params(axis="y", labelsize=8)
-
-
-# Create 1 row and 2 columns of charts (side by side like the sample)
-fig, axes = plt.subplots(1, 2, figsize=(16, 5.2))
-
-plot_ca_kpi(
-    ax=axes[0],
-    table=dl,
-    title="DL CA User Ratio,%",
-    y_max=25,
-    y_step=5,
-)
-plot_ca_kpi(
-    ax=axes[1],
-    table=ul,
-    title="UL CA User Ratio,%",
-    y_max=2,
-    y_step=0.2,
-)
-
-fig.tight_layout()
-plt.show()
-"""
-)
-
-md(
-    """## Step 6 — Save the picture
-
-This writes a PNG file you can put in a report, email, or PowerPoint.
-"""
-)
-
-code(
-    """from pathlib import Path
-
-output_folder = Path("output")
-output_folder.mkdir(exist_ok=True)
-picture_path = output_folder / "ca_user_ratio_charts.png"
-
-# Draw again and save. (plt.show() above already displayed it.)
-fig.savefig(picture_path, dpi=160, bbox_inches="tight")
-print("Saved:", picture_path.resolve())
-"""
-)
-
-md(
-    """## Step 7 — Optional: calculate the KPI from raw counters
-
-In a live network you usually export **counters**, not the finished percentage.
-
-Example:
-
-| Date | Hour | Avg_RRC_Users | DL_CA_Users | UL_CA_Users |
-|---|---|---|---|---|
-| 27-Aug-26 | 00:00 | 4200 | 853 | 60 |
-
-Then:
-
-```text
-DL CA User Ratio % = DL_CA_Users / Avg_RRC_Users * 100
-UL CA User Ratio % = UL_CA_Users / Avg_RRC_Users * 100
-```
-
-Run the next cell to do that with the sample counter file.
-"""
-)
-
-code(
-    """raw = pd.read_csv("data/sample_ca_raw_counters.csv")
-
-print("First 8 rows of raw counters:")
-display(raw.head(8))
-
-# Calculate the two KPIs. This is the most important formula in this notebook.
-raw["DL_CA_User_Ratio"] = raw["DL_CA_Users"] / raw["Avg_RRC_Users"] * 100
-raw["UL_CA_User_Ratio"] = raw["UL_CA_Users"] / raw["Avg_RRC_Users"] * 100
-
-print("After adding the KPI columns:")
-display(raw.head(8))
-"""
-)
-
-md(
-    """### Turn the long table into Excel-style wide tables
-
-Raw OSS files are usually **long** (one row per hour per date). Charts like the sample need **wide** tables (one column per date). `pivot` does that.
-"""
-)
-
-code(
-    """dl_from_counters = raw.pivot(
-    index="Hour",
-    columns="Date",
-    values="DL_CA_User_Ratio",
-).reset_index()
-
-ul_from_counters = raw.pivot(
-    index="Hour",
-    columns="Date",
-    values="UL_CA_User_Ratio",
-).reset_index()
-
-# Keep the date columns in the same order as the sample
-date_order = ["Hour", "27-Aug-26", "1-Sep-26", "2-Sep-26", "3-Sep-26"]
-dl_from_counters = dl_from_counters[date_order]
-ul_from_counters = ul_from_counters[date_order]
-
-print("DL KPI built from counters (first 5 hours):")
-display(dl_from_counters.head())
-"""
-)
-
-md(
-    """## Step 8 — Use YOUR own Excel file
-
-Make a copy of `data/sample_ca_kpi.xlsx` and replace the numbers.
-
-Rules (please follow them exactly):
-
-1. Keep the two data sheets named `DL_CA_User_Ratio` and `UL_CA_User_Ratio`.
-2. First column name must be **Hour**.
-3. Other column names are the **dates** you want in the legend.
-4. Put hours as `00:00`, `01:00`, ... `23:00`.
-5. If today is incomplete, leave the empty cells blank. Do not write `0` unless the KPI is really zero.
-
-Then change **only** the file name in the next cell and run it.
+Today we use the practice workbook.
 """
 )
 
 code(
     """# -------------------------------------------------
-# CHANGE THIS PATH to your own file when you are ready
+# LATER: change this path to your own Excel file
 # -------------------------------------------------
-my_file = Path("data/sample_ca_kpi.xlsx")
+excel_path = Path("data/sample_ran_kpi_dashboard.xlsx")
 
-my_book = pd.read_excel(my_file, sheet_name=None)
-my_dl = my_book["DL_CA_User_Ratio"]
-my_ul = my_book["UL_CA_User_Ratio"]
+if not excel_path.exists():
+    raise FileNotFoundError(
+        "I cannot find the Excel file.\\n"
+        "Open Jupyter from the project folder (the folder that contains data/)."
+    )
 
-fig, axes = plt.subplots(1, 2, figsize=(16, 5.2))
-plot_ca_kpi(axes[0], my_dl, "DL CA User Ratio,%", 25, 5)
-plot_ca_kpi(axes[1], my_ul, "UL CA User Ratio,%", 2, 0.2)
-fig.tight_layout()
-plt.show()
+print("Using file:", excel_path.resolve())
 """
 )
 
 md(
-    """## Step 9 — Reuse this for other RAN KPIs
+    """## Step 4 — Open the workbook and list the sheets
 
-The drawing function does not care that the KPI is CA. You can plot **any hourly RAN KPI** if you put it in the same table shape.
-
-Examples:
-
-| KPI | Typical Y-axis |
-|---|---|
-| DL PRB Utilization % | 0 to 100 |
-| UL PRB Utilization % | 0 to 100 |
-| RRC Setup Success Rate % | 98 to 100 (or 0 to 100) |
-| ERAB Drop Rate % | 0 to 2 |
-| Intra-freq HO Success Rate % | 95 to 100 |
-| Average CQI | 0 to 15 |
-| User Downlink Throughput (Mbps) | 0 to 80 |
-
-Only two things usually change:
-
-1. The Excel sheet / column you load
-2. `y_max` and `y_step` so the chart is readable
-
-Try this with the same sample DL table, but a different title and scale:
+`sheet_name=None` means: load **all** tabs.
 """
 )
 
 code(
-    """# This is only a demo of changing the title and Y-axis.
-# Replace `dl` with your other KPI table when you have one.
+    """workbook = pd.read_excel(excel_path, sheet_name=None)
 
-fig, ax = plt.subplots(figsize=(10, 4.5))
-plot_ca_kpi(
-    ax=ax,
-    table=dl,
-    title="Replace this title with your KPI name",
-    y_max=25,   # change this, for example 100 for PRB Utilization
-    y_step=5,   # change this, for example 10 for PRB Utilization
+print("Sheets in this Excel file:")
+for name in workbook:
+    print(" -", name)
+"""
 )
+
+md(
+    """## Step 5 — Read the KPI settings table
+
+`KPI_Settings` tells Python how to draw each sheet:
+
+- `Sheet_Name` = Excel tab name
+- `Title` = text on the chart
+- `Y_Min`, `Y_Max`, `Y_Step` = Y-axis scale
+
+This is how one notebook can plot **all** KPIs without rewriting code for each one.
+"""
+)
+
+code(
+    """SKIP_SHEETS = {"HowTo", "KPI_Settings", "ReadMe", "Template"}
+
+settings = workbook["KPI_Settings"].copy()
+display(settings)
+
+kpi_sheets = [name for name in workbook if name not in SKIP_SHEETS]
+print("\\nKPI data sheets:")
+for name in kpi_sheets:
+    print(" -", name, " size:", workbook[name].shape)
+"""
+)
+
+md(
+    """## Step 6 — Look at one KPI table
+
+Always look before you plot. Pick any sheet name from the list above.
+"""
+)
+
+code(
+    """one_sheet_name = kpi_sheets[0]
+one_table = workbook[one_sheet_name]
+
+print("Sheet:", one_sheet_name)
+display(one_table.head(8))
+print("...")
+display(one_table.tail(3))
+"""
+)
+
+md(
+    """## Step 7 — The chart function (works for any KPI)
+
+You do not need to understand every line today. The important part is:
+
+- bars for earlier dates
+- line for the last date
+- title and Y-axis come from `KPI_Settings`
+"""
+)
+
+code(
+    """BAR_COLORS = ["#92D050", "#FFC000", "#A6A6A6", "#5B9BD5", "#ED7D31"]
+
+
+def plot_kpi(ax, table, title, y_min, y_max, y_step, show_legend=True):
+    hour_labels = table["Hour"].astype(str)
+    date_columns = [col for col in table.columns if str(col) != "Hour"]
+    bar_dates = date_columns[:-1]
+    line_date = date_columns[-1]
+
+    x = np.arange(len(hour_labels))
+    bar_width = 0.8 / max(len(bar_dates), 1)
+
+    for i, date in enumerate(bar_dates):
+        offset = (i - (len(bar_dates) - 1) / 2) * bar_width
+        ax.bar(
+            x + offset,
+            table[date],
+            width=bar_width * 0.92,
+            color=BAR_COLORS[i % len(BAR_COLORS)],
+            edgecolor="white",
+            linewidth=0.3,
+            label=str(date),
+            zorder=3,
+        )
+
+    ax.plot(
+        x,
+        table[line_date],
+        color="#000000",
+        linewidth=2.2,
+        marker="o",
+        markersize=3.5,
+        label=str(line_date),
+        zorder=4,
+    )
+
+    ax.set_title(title, fontsize=11, pad=8)
+    ax.set_ylim(y_min, y_max)
+    ax.set_yticks(np.arange(y_min, y_max + (y_step / 2), y_step))
+    ax.set_xticks(x)
+    ax.set_xticklabels(hour_labels, rotation=90, fontsize=7)
+    ax.set_xlim(-0.6, len(hour_labels) - 0.4)
+    ax.yaxis.grid(True, linestyle="-", linewidth=0.6, color="#D9D9D9")
+    ax.set_axisbelow(True)
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+    if show_legend:
+        ax.legend(loc="upper left", bbox_to_anchor=(1.01, 1.0), fontsize=7)
+    ax.tick_params(axis="y", labelsize=7)
+
+
+print("Chart function is ready.")
+"""
+)
+
+md(
+    """## Step 8 — Draw ONE KPI first
+
+We start with one chart so you can see the style clearly. Then we draw the full dashboard.
+"""
+)
+
+code(
+    """def settings_for(sheet_name):
+    match = settings[settings["Sheet_Name"] == sheet_name]
+    if len(match) == 0:
+        raise KeyError("Sheet " + sheet_name + " is missing from KPI_Settings.")
+    row = match.iloc[0]
+    return row["Title"], float(row["Y_Min"]), float(row["Y_Max"]), float(row["Y_Step"])
+
+
+title, y_min, y_max, y_step = settings_for(one_sheet_name)
+
+fig, ax = plt.subplots(figsize=(10, 4.2))
+plot_kpi(ax, one_table, title, y_min, y_max, y_step)
 fig.tight_layout()
 plt.show()
 """
 )
 
 md(
-    """## Common problems (read this if something fails)
+    """## Step 9 — Draw the full dashboard (all KPI sheets)
+
+This loop is the heart of the dashboard:
+
+1. Take every KPI sheet
+2. Read its title and Y-axis from `KPI_Settings`
+3. Draw it in a 2-column grid
+"""
+)
+
+code(
+    """n_kpis = len(kpi_sheets)
+n_cols = 2
+n_rows = int(np.ceil(n_kpis / n_cols))
+
+fig, axes = plt.subplots(n_rows, n_cols, figsize=(16, 4.6 * n_rows))
+axes = np.atleast_2d(axes)
+
+for i, sheet_name in enumerate(kpi_sheets):
+    row, col = divmod(i, n_cols)
+    title, y_min, y_max, y_step = settings_for(sheet_name)
+    plot_kpi(
+        axes[row, col],
+        workbook[sheet_name],
+        title,
+        y_min,
+        y_max,
+        y_step,
+        show_legend=False,
+    )
+
+# Hide leftover empty boxes if the last row is not full
+for j in range(n_kpis, n_rows * n_cols):
+    row, col = divmod(j, n_cols)
+    axes[row, col].axis("off")
+
+handles, labels = axes[0, 0].get_legend_handles_labels()
+fig.legend(
+    handles,
+    labels,
+    loc="upper center",
+    ncol=4,
+    frameon=True,
+    fontsize=9,
+    bbox_to_anchor=(0.5, 1.0),
+)
+fig.suptitle("RAN KPI Dashboard", fontsize=16, y=1.02)
+fig.tight_layout(rect=[0, 0, 1, 0.97])
+plt.show()
+"""
+)
+
+md(
+    """## Step 10 — Save the dashboard picture
+
+You can put this PNG in a report, email, or PowerPoint.
+"""
+)
+
+code(
+    """output_folder = Path("output")
+output_folder.mkdir(exist_ok=True)
+picture_path = output_folder / "ran_kpi_dashboard.png"
+
+fig.savefig(picture_path, dpi=140, bbox_inches="tight")
+print("Saved:", picture_path.resolve())
+"""
+)
+
+md(
+    """## Step 11 — Add or replace KPIs
+
+You do **not** change Python to add a KPI. You change Excel:
+
+1. Add a new sheet with `Hour` + date columns.
+2. Add one row in `KPI_Settings` for that sheet.
+3. Run **Kernel → Restart & Run All**.
+
+To replace practice data with live network data later:
+
+1. Save your OSS Excel into the `data` folder.
+2. Change `excel_path` in Step 3.
+3. Make sure `KPI_Settings` lists every data sheet.
+4. Run all cells again.
+
+If your file looks different (long format, vendor counter names, many objects, not hourly), **keep the file as it is**. Send it later and we will add a conversion step. Do not spend time reshaping it by hand unless you want to.
+"""
+)
+
+code(
+    """print("Practice file in use:", excel_path)
+print("Number of KPI charts:", n_kpis)
+print()
+print("When your Excel is ready, put it in the data folder and change excel_path.")
+print("Template you can copy: data/YOUR_KPI_TEMPLATE.xlsx")
+"""
+)
+
+md(
+    """## Common problems
 
 **`FileNotFoundError`**  
-Jupyter is open in the wrong folder. Close it, open the folder that contains `data`, then open the notebook again.
+Jupyter is open in the wrong folder. Open the folder that contains `data`, then open this notebook.
 
-**`No module named pandas` (or matplotlib / openpyxl)**  
-Run this in a cell: `!pip install pandas matplotlib openpyxl`
+**`No module named pandas`**  
+Run: `!pip install pandas matplotlib openpyxl`
 
-**The black line is missing after lunch time**  
-That is expected if today's column has empty cells. Fill more hours, then run the chart cell again.
+**A chart Y-axis looks too tight or too tall**  
+Change `Y_Min`, `Y_Max`, `Y_Step` in the `KPI_Settings` sheet, save Excel, run again.
 
-**Bars look too small / too tall**  
-Change `y_max`. Example: PRB utilization should use `y_max=100`.
+**The black line stops in the afternoon**  
+That is normal if the last date has empty cells.
 
-**Excel sheet name error**  
-The names must match exactly, including capital letters and underscores: `DL_CA_User_Ratio`.
+**Sheet name error**  
+`Sheet_Name` in `KPI_Settings` must match the Excel tab name exactly.
 
 ---
 
-You can now:
-
-1. Replace the sample Excel with your OSS export.
-2. Press **Kernel → Restart & Run All**.
-3. Pick up `output/ca_user_ratio_charts.png` for your report.
+You now have a dashboard engine. Next time you send a sample Excel, we will connect it here.
 """
 )
 
 nb["cells"] = cells
-out = Path("/workspace/01_CA_User_Ratio_Beginner.ipynb")
+out = Path("/workspace/01_RAN_KPI_Dashboard_Beginner.ipynb")
 out.write_text(nbf.writes(nb), encoding="utf-8")
 print(f"Wrote {out} with {len(cells)} cells")

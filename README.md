@@ -1,24 +1,24 @@
 # RAN KPI Dashboard Preparation with Python
 
-Beginner-friendly Jupyter notebook that draws **RAN KPI charts** in the same style as a typical Excel report.
+Beginner-friendly Jupyter notebook that builds a **RAN KPI dashboard** in the same style as a typical Excel report:
 
-The first example is **Carrier Aggregation (CA) User Ratio**:
-
-- Left: **DL CA User Ratio, %**
-- Right: **UL CA User Ratio, %**
 - Green / yellow / gray **bars** = previous days
 - Black **line** = latest day (partial day is allowed)
+- **One Excel sheet = one KPI**
+- The same code draws **every** KPI: accessibility, retainability, mobility, utilization, throughput, availability, CA, and anything else with the same table shape
 
-![CA User Ratio sample charts](output/ca_user_ratio_charts.png)
+Practice data is included so you can learn today. Your live OSS Excel can replace it later.
+
+![RAN KPI dashboard](output/ran_kpi_dashboard.png)
 
 ## What is in this folder
 
 | File or folder | What it is |
 |---|---|
-| `01_CA_User_Ratio_Beginner.ipynb` | **Start here.** Step-by-step notebook. |
-| `data/sample_ca_kpi.xlsx` | Sample Excel file (2 sheets, like the report). |
-| `data/sample_ca_raw_counters.csv` | Sample OSS counters, used to **calculate** the KPI. |
-| `output/` | Saved chart pictures after you run the notebook. |
+| `01_RAN_KPI_Dashboard_Beginner.ipynb` | **Start here.** Step-by-step notebook. |
+| `data/sample_ran_kpi_dashboard.xlsx` | Practice workbook (many KPI sheets). |
+| `data/YOUR_KPI_TEMPLATE.xlsx` | Empty template to copy for your own file. |
+| `output/` | Saved dashboard picture after you run the notebook. |
 | `requirements.txt` | Python packages to install. |
 
 ## How to run (slow, for beginners)
@@ -36,9 +36,7 @@ jupyter notebook
 
 ### 3. Open the notebook
 
-In the Jupyter page, click:
-
-`01_CA_User_Ratio_Beginner.ipynb`
+Click `01_RAN_KPI_Dashboard_Beginner.ipynb`.
 
 ### 4. Run it cell by cell
 
@@ -48,35 +46,29 @@ In the Jupyter page, click:
 
 Or use the menu: **Kernel → Restart & Run All**.
 
-You should see two charts side by side, similar to the Excel sample.
+## Excel layout (this is the contract)
 
-## How to use your own network data
+Each KPI sheet:
 
-1. Keep the same Excel layout as `data/sample_ca_kpi.xlsx`.
-2. Keep these two data sheets:
-   - `DL_CA_User_Ratio`
-   - `UL_CA_User_Ratio`
-3. First column name: `Hour` (`00:00`, `01:00`, ... `23:00`).
-4. Other columns: one column per date.
-5. In the notebook, change the file path in **Step 8**.
+| Hour | Date1 | Date2 | Date3 | Date4 |
+|---|---|---|---|---|
+| 00:00 | | | | |
+| ... | | | | |
+| 23:00 | | | | |
 
-If your OSS export is counters instead of percentages:
+There is also a `KPI_Settings` sheet:
 
-```text
-DL CA User Ratio % = DL_CA_Users / Avg_RRC_Users * 100
-UL CA User Ratio % = UL_CA_Users / Avg_RRC_Users * 100
-```
+| Sheet_Name | Title | Y_Min | Y_Max | Y_Step |
+|---|---|---|---|---|
+| DL_PRB_Utilization | DL PRB Utilization,% | 0 | 100 | 10 |
+| ERAB_Drop_Rate | ERAB Drop Rate,% | 0 | 1 | 0.1 |
 
-Step 7 in the notebook shows this with the sample counter file.
+Add a new KPI by adding a sheet **and** one row in `KPI_Settings`. No Python change is required.
 
-## Reuse for other RAN KPIs
+If your real OSS export looks different, keep the file. The notebook can be adapted when that sample arrives.
 
-The chart function works for any hourly KPI with the same table shape, for example:
+## When your network Excel is ready
 
-- DL / UL PRB Utilization %
-- RRC Setup Success Rate %
-- ERAB Drop Rate %
-- Handover Success Rate %
-- User Throughput (Mbps)
-
-Only the title and the Y-axis maximum usually need to change. See **Step 9** in the notebook.
+1. Put the file in the `data` folder.
+2. In the notebook Step 3, change `excel_path`.
+3. Run all cells again.

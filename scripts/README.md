@@ -1,3 +1,3 @@
-These helper scripts rebuild sample data and the beginner notebook.
+These helper scripts rebuild the practice Excel files and the beginner notebook.
 
-If you are learning Python, ignore this folder. Open `01_CA_User_Ratio_Beginner.ipynb` instead.
+If you are learning Python, ignore this folder. Open `01_RAN_KPI_Dashboard_Beginner.ipynb` instead.
